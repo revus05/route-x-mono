@@ -50,7 +50,7 @@ export async function createEventConversation(conversation: MyConversation, ctx:
   });
 
   await ctx.reply(
-    `✅ <b>Мероприятие создано!</b>\n\n🏁 <b>${event.name}</b>\n📅 Дата: <b>${dateStr}</b>\n🆔 ID: <code>${event.id}</code>\n\n<i>Участники могут регистрироваться через /register.</i>`,
+    `✅ <b>Мероприятие создано!</b>\n\n🏁 <b>${event.name}</b>\n📅 Дата: <b>${dateStr}</b>\n\n<i>Участники могут регистрироваться через /register.</i>`,
     { parse_mode: "HTML" }
   );
 }
