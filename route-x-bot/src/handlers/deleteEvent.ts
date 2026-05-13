@@ -77,9 +77,10 @@ export async function handleDeleteEventConfirm(ctx: CallbackQueryContext<MyConte
     return;
   }
 
-  // Delete in order: results → registrations → event
+  // Delete in order: results → registrations → marshals → event
   await prisma.raceResult.deleteMany({ where: { eventId } });
   await prisma.eventRegistration.deleteMany({ where: { eventId } });
+  await prisma.marshalRegistration.deleteMany({ where: { eventId } });
   await prisma.event.delete({ where: { id: eventId } });
 
   await ctx.editMessageText(

@@ -7,6 +7,7 @@ const PAGE_SIZE = 12;
 
 function buildRegistrationsMessage(
   regs: { rxNumber: string; fullName: string; car: string; instagram: string | null; driveType: string }[],
+  marshals: { name: string; phone: string }[],
   eventName: string,
   eventId: number,
   page: number,
@@ -19,11 +20,16 @@ function buildRegistrationsMessage(
     return `${num}. <code>${r.rxNumber}</code>  <b>${r.fullName}</b>  <i>${r.car}</i> [${r.driveType}]${ig}`;
   });
 
-  const text =
+  let text =
     `👥 <b>Участники: ${eventName}</b>\n` +
     `Страница ${page}/${totalPages} · Всего: <b>${total}</b>\n` +
     `${"─".repeat(28)}\n` +
-    lines.join("\n");
+    (lines.length > 0 ? lines.join("\n") : "<i>Нет участников</i>");
+
+  if (marshals.length > 0) {
+    const marshalLines = marshals.map((m, i) => `${i + 1}. <b>${m.name}</b> — <code>${m.phone}</code>`);
+    text += `\n\n🚦 <b>Маршалы: ${marshals.length}</b>\n${"─".repeat(28)}\n` + marshalLines.join("\n");
+  }
 
   const kb = new InlineKeyboard();
   if (page > 1) kb.text("◀ Назад", `users_page:${eventId}:${page - 1}`);
@@ -41,7 +47,9 @@ export async function handleUsers(ctx: CommandContext<MyContext>) {
     where: { date: { gte: today } },
     orderBy: { date: "asc" },
     take: 20,
-    include: { _count: { select: { registrations: true } } },
+    include: {
+      _count: { select: { registrations: true, marshals: true } },
+    },
   });
 
   if (events.length === 0) {
@@ -56,8 +64,9 @@ export async function handleUsers(ctx: CommandContext<MyContext>) {
       month: "2-digit",
       year: "numeric",
     });
+    const counts = `${event._count.registrations} уч.${event._count.marshals > 0 ? ` · ${event._count.marshals} марш.` : ""}`;
     kb.text(
-      `🏁 ${event.name} — ${dateStr} (${event._count.registrations})`,
+      `🏁 ${event.name} — ${dateStr} (${counts})`,
       `users_event:${event.id}`
     ).row();
   }
@@ -77,8 +86,15 @@ export async function handleUsersEventSelect(ctx: CallbackQueryContext<MyContext
     return;
   }
 
-  const total = await prisma.eventRegistration.count({ where: { eventId } });
-  if (total === 0) {
+  const [total, marshals] = await Promise.all([
+    prisma.eventRegistration.count({ where: { eventId } }),
+    prisma.marshalRegistration.findMany({
+      where: { eventId },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
+  if (total === 0 && marshals.length === 0) {
     await ctx.answerCallbackQuery();
     await ctx.reply(`ℹ️ На мероприятие <b>${event.name}</b> пока нет регистраций.`, {
       parse_mode: "HTML",
@@ -86,14 +102,16 @@ export async function handleUsersEventSelect(ctx: CallbackQueryContext<MyContext
     return;
   }
 
-  const regs = await prisma.eventRegistration.findMany({
-    where: { eventId },
-    orderBy: { rxNumber: "asc" },
-    take: PAGE_SIZE,
-    skip: 0,
-  });
+  const regs = total > 0
+    ? await prisma.eventRegistration.findMany({
+        where: { eventId },
+        orderBy: { rxNumber: "asc" },
+        take: PAGE_SIZE,
+        skip: 0,
+      })
+    : [];
 
-  const { text, keyboard } = buildRegistrationsMessage(regs, event.name, eventId, 1, total);
+  const { text, keyboard } = buildRegistrationsMessage(regs, marshals, event.name, eventId, 1, total);
   await ctx.answerCallbackQuery();
   await ctx.reply(text, { reply_markup: keyboard, parse_mode: "HTML" });
 }
@@ -120,7 +138,14 @@ export async function handleUsersPagination(ctx: CallbackQueryContext<MyContext>
     return;
   }
 
-  const total = await prisma.eventRegistration.count({ where: { eventId } });
+  const [total, marshals] = await Promise.all([
+    prisma.eventRegistration.count({ where: { eventId } }),
+    prisma.marshalRegistration.findMany({
+      where: { eventId },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
+
   const totalPages = Math.ceil(total / PAGE_SIZE);
   if (page > totalPages) {
     await ctx.answerCallbackQuery();
@@ -134,7 +159,7 @@ export async function handleUsersPagination(ctx: CallbackQueryContext<MyContext>
     skip: (page - 1) * PAGE_SIZE,
   });
 
-  const { text, keyboard } = buildRegistrationsMessage(regs, event.name, eventId, page, total);
+  const { text, keyboard } = buildRegistrationsMessage(regs, marshals, event.name, eventId, page, total);
   await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: "HTML" });
   await ctx.answerCallbackQuery();
 }

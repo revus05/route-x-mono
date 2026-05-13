@@ -28,7 +28,6 @@ export const MediaSwiper: FC<MediaSwiperProps> = ({ media }) => {
 
   const visibleIndicators = useMemo(() => {
     const indicatorsMedia = [...media];
-
     indicatorsMedia.splice(activeIndex + 1, slidesPerView - 1);
     return indicatorsMedia;
   }, [activeIndex, slidesPerView, media]);
@@ -82,18 +81,21 @@ export const MediaSwiper: FC<MediaSwiperProps> = ({ media }) => {
       </Swiper>
 
       <div className="flex justify-center items-center gap-2">
-        {visibleIndicators.map((mediaItem, index) => (
-          <button
-            key={mediaItem.id}
-            className={`w-2 h-2 rounded-full transition-all duration-300 ${
-              activeIndex + 1 === +mediaItem.id
-                ? "bg-accent w-4"
-                : "bg-gray-300 hover:bg-gray-400"
-            }`}
-            aria-label={`Перейти к слайду ${activeIndex + index + 1}`}
-            type="button"
-          />
-        ))}
+        {visibleIndicators.map((mediaItem, index) => {
+          const elementIndexInMedia = media.indexOf(mediaItem);
+          return (
+            <button
+              key={mediaItem.id}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                elementIndexInMedia === activeIndex
+                  ? "bg-accent w-4"
+                  : "bg-gray-300 hover:bg-gray-400"
+              }`}
+              aria-label={`Перейти к слайду ${activeIndex + index + 1}`}
+              type="button"
+            />
+          );
+        })}
       </div>
     </div>
   );

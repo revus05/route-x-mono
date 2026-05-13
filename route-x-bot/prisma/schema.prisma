@@ -23,14 +23,16 @@ model AdminOverride {
   username   String? @unique
 }
 
-// Event created by admin (name + date)
+// Event created by admin (name + date + type)
 model Event {
-  id            Int                 @id @default(autoincrement())
+  id            Int                   @id @default(autoincrement())
   name          String
   date          DateTime
-  createdAt     DateTime            @default(now())
+  eventType     String                @default("TRACK_DAY") // TRACK_DAY | TRAINING
+  createdAt     DateTime              @default(now())
   registrations EventRegistration[]
   results       RaceResult[]
+  marshals      MarshalRegistration[]
 }
 
 // Participant registration for a specific event
@@ -48,6 +50,16 @@ model EventRegistration {
 
   @@unique([eventId, telegramId])
   @@unique([eventId, rxNumber])
+}
+
+// Marshal registration for an event
+model MarshalRegistration {
+  id        Int      @id @default(autoincrement())
+  event     Event    @relation(fields: [eventId], references: [id])
+  eventId   Int
+  name      String
+  phone     String
+  createdAt DateTime @default(now())
 }
 
 model RaceResult {

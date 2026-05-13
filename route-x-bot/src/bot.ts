@@ -58,6 +58,12 @@ bot.use(async (ctx, next) => {
   return next();
 });
 
+// /exit — cancel any active conversation
+bot.command("exit", async (ctx) => {
+  await ctx.conversation.exit();
+  await ctx.reply("❌ Диалог отменён.");
+});
+
 // Commands — public
 bot.command("start", handleStart);
 bot.command("register", async (ctx) => { await ctx.conversation.enter("register"); });
