@@ -27,9 +27,9 @@ export async function registerConversation(conversation: MyConversation, ctx: My
 
   // Step 0: Choose registration type
   const regTypeKb = new InlineKeyboard()
-    .text("🚦 Маршал", "regtype:marshal").row()
-    .text("🏁 Трек-дни", "regtype:track_day").row()
-    .text("🏋️ Тренировки", "regtype:training");
+    .text("🏁 Трек-день", "regtype:track_day").row()
+    .text("🏋️ Соревнования", "regtype:training").row()
+    .text("🚦 Аккредитация маршалов и сми", "regtype:marshal");
 
   await ctx.reply(
     "🏁 <b>GYMKHANA Route Race</b>\n\nВыберите тип регистрации:\n\n<i>Для отмены в любой момент введите /exit</i>",
