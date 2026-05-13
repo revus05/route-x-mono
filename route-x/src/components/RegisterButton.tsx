@@ -12,7 +12,7 @@ export const RegisterButton = () => {
         "bg-accent hover:bg-accent/70 text-black [&_svg]:fill-black",
         "hover:[&_svg]:ml-1.5 [&_svg]:transition-[margin] relative before:h-16 before:w-2",
         "before:bg-gray-400/70 before:rotate-30 before:absolute before:z-2 before:-left-4",
-        "hover:before:translate-x-60 before:transition-transform hover:scale-[1.03] overflow-hidden"
+        "hover:before:translate-x-80 before:transition-transform hover:scale-[1.03] overflow-hidden"
       )}
     >
       Зарегистрироваться
