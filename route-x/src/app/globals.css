@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+:root {
+  --background: #414141;
+  --text: #ffffff;
+  --accent: #b8ff01;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-accent: var(--accent);
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .bg-media-fade {
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.1) 60%,
+      rgba(0, 0, 0, 1) 100%
+    );
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family: Tektur, Helvetica, sans-serif;
+}

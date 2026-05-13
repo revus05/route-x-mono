@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User — only for admins (no registration profile)
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  username   String?  @unique
+  isAdmin    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
+
+// Pre-authorized admins (before they ever interact with the bot)
+model AdminOverride {
+  id         Int     @id @default(autoincrement())
+  telegramId BigInt? @unique
+  username   String? @unique
+}
+
+// Event created by admin (name + date)
+model Event {
+  id            Int                 @id @default(autoincrement())
+  name          String
+  date          DateTime
+  createdAt     DateTime            @default(now())
+  registrations EventRegistration[]
+  results       RaceResult[]
+}
+
+// Participant registration for a specific event
+model EventRegistration {
+  id         Int      @id @default(autoincrement())
+  event      Event    @relation(fields: [eventId], references: [id])
+  eventId    Int
+  telegramId BigInt
+  rxNumber   String
+  fullName   String
+  car        String
+  instagram  String?
+  driveType  String
+  createdAt  DateTime @default(now())
+
+  @@unique([eventId, telegramId])
+  @@unique([eventId, rxNumber])
+}
+
+model RaceResult {
+  id       Int    @id @default(autoincrement())
+  event    Event  @relation(fields: [eventId], references: [id])
+  eventId  Int
+  position Int
+  rxNumber String
+  lapTimes String[]
+}

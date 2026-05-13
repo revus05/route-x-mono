@@ -1,0 +1,23 @@
+{
+  "name": "route-x-bot",
+  "version": "1.0.0",
+  "module": "src/index.ts",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:push": "prisma db push"
+  },
+  "dependencies": {
+    "@grammyjs/conversations": "^2.0.1",
+    "@prisma/client": "^6.0.0",
+    "grammy": "^1.31.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "bun-types": "latest",
+    "prisma": "^6.0.0",
+    "typescript": "^5.0.0"
+  }
+}

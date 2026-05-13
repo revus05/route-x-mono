@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: routex-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bot_user
+      POSTGRES_PASSWORD: bot_pass
+      POSTGRES_DB: routex_bot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bot_user -d routex_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: ./route-x-bot
+    container_name: routex-bot
+    restart: unless-stopped
+    env_file:
+      - ./route-x-bot/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "bunx prisma migrate deploy && bun run src/index.ts"
+
+  frontend:
+    build: ./route-x
+    container_name: routex-frontend
+    restart: unless-stopped
+    env_file:
+      - ./route-x/.env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
