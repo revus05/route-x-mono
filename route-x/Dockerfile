@@ -2,8 +2,8 @@
 FROM oven/bun:1.1.6-alpine AS deps
 
 WORKDIR /app
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+COPY package.json bun.lock* ./
+RUN bun install
 
 
 # ---------- Stage 2: Build ----------
@@ -11,10 +11,12 @@ FROM oven/bun:1.3.6-alpine AS builder
 
 WORKDIR /app
 
+ARG GOOGLE_SHEET_URL
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-RUN bun run build
+RUN GOOGLE_SHEET_URL=${GOOGLE_SHEET_URL} bun run build
 
 # ---------- Stage 3: Run ----------
 FROM oven/bun:1.3.6-alpine AS runner

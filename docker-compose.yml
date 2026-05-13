@@ -30,7 +30,10 @@ services:
       sh -c "bunx prisma migrate deploy && bun run src/index.ts"
 
   frontend:
-    build: ./route-x
+    build:
+      context: ./route-x
+      args:
+        GOOGLE_SHEET_URL: ${GOOGLE_SHEET_URL:-https://opensheet.elk.sh/1ouU6YJwxn6syJwYS2rn0960t0YXtVAvEN-8b7akx2AU/}
     container_name: routex-frontend
     restart: unless-stopped
     env_file:
