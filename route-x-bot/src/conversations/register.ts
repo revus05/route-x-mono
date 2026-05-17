@@ -59,7 +59,7 @@ export async function registerConversation(conversation: MyConversation, ctx: My
     await handleMarshalRegistration(conversation, ctx);
   } else {
     const eventType = regType === "track_day" ? "TRACK_DAY" : "TRAINING";
-    const typeLabel = regType === "track_day" ? "Трек-дни" : "Тренировки";
+    const typeLabel = regType === "track_day" ? "Трек-дни" : "Соревнования";
     await handleParticipantRegistration(conversation, ctx, telegramId, eventType, typeLabel);
   }
 }
@@ -89,7 +89,7 @@ async function handleMarshalRegistration(
 
   const EVENT_TYPE_LABELS: Record<string, string> = {
     TRACK_DAY: "Трек-дни",
-    TRAINING: "Тренировки",
+    TRAINING: "Соревнования",
   };
 
   const kb = new InlineKeyboard();

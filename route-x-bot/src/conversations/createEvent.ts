@@ -7,7 +7,7 @@ type MyConversation = Conversation<MyContext, MyContext>;
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   TRACK_DAY: "Трек-дни",
-  TRAINING: "Тренировки",
+  TRAINING: "Соревнования",
 };
 
 function parseDate(input: string): Date | null {
@@ -41,7 +41,7 @@ export async function createEventConversation(conversation: MyConversation, ctx:
   // Step 2: Event type
   const typeKb = new InlineKeyboard()
     .text("🏁 Трек-дни", "etype:TRACK_DAY")
-    .text("🏋️ Тренировки", "etype:TRAINING");
+    .text("🏆 Соревнования", "etype:TRAINING");
 
   await nameMsg.reply(
     "<b>Шаг 2 из 3</b> — выберите тип мероприятия:",
@@ -50,16 +50,20 @@ export async function createEventConversation(conversation: MyConversation, ctx:
 
   let eventType = "";
   while (!eventType) {
-    const typeCbq = await conversation.waitFor("callback_query:data");
-    const data = typeCbq.callbackQuery.data;
+    const update = await conversation.wait();
+    if (update.message?.text && isExit(update.message.text)) {
+      await ctx.reply("❌ Создание мероприятия отменено.");
+      return;
+    }
+    const data = update.callbackQuery?.data;
     if (data === "etype:TRACK_DAY" || data === "etype:TRAINING") {
       eventType = data.split(":")[1];
-      await typeCbq.editMessageText(
+      await update.editMessageText(
         `<b>Шаг 2 из 3</b> — тип мероприятия: <b>${EVENT_TYPE_LABELS[eventType]}</b>`,
         { parse_mode: "HTML" }
       );
     }
-    await typeCbq.answerCallbackQuery();
+    if (update.callbackQuery) await update.answerCallbackQuery();
   }
 
   // Step 3: Date

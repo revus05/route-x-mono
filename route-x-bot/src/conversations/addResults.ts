@@ -5,6 +5,10 @@ import prisma from "../prisma";
 
 type MyConversation = Conversation<MyContext, MyContext>;
 
+function isExit(text: string): boolean {
+  return text.trim() === "/exit";
+}
+
 function parseLapTimes(input: string): string[] {
   return input
     .trim()
@@ -45,13 +49,23 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
   }
 
   await ctx.reply(
-    "📅 <b>Добавление результатов заезда</b>\n\nВыберите мероприятие:",
+    "📅 <b>Добавление результатов заезда</b>\n\nВыберите мероприятие:\n\n<i>Для отмены введите /exit</i>",
     { reply_markup: kb, parse_mode: "HTML" }
   );
 
-  const eventCbq = await conversation.waitFor("callback_query:data");
-  const cbData = eventCbq.callbackQuery.data;
-  await eventCbq.answerCallbackQuery();
+  let cbData = "";
+  while (!cbData) {
+    const update = await conversation.wait();
+    if (update.message?.text && isExit(update.message.text)) {
+      await ctx.reply("❌ Добавление результатов отменено.");
+      return;
+    }
+    const data = update.callbackQuery?.data;
+    if (data?.startsWith("addres_event:")) {
+      cbData = data;
+    }
+    if (update.callbackQuery) await update.answerCallbackQuery();
+  }
 
   if (!cbData.startsWith("addres_event:")) return;
   const eventId = parseInt(cbData.split(":")[1], 10);
@@ -62,12 +76,16 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
   if (!selectedEvent) return;
 
   // Step 2: Number of participants
-  await ctx.reply("👥 Сколько участников финишировало? <i>(от 1 до 20)</i>", {
+  await ctx.reply("👥 Сколько участников финишировало? <i>(от 1 до 20)</i>\n\n<i>Для отмены введите /exit</i>", {
     parse_mode: "HTML",
   });
   let participantCount = 0;
   while (participantCount < 1 || participantCount > 20) {
     const msg = await conversation.waitFor("message:text");
+    if (isExit(msg.message.text)) {
+      await ctx.reply("❌ Добавление результатов отменено.");
+      return;
+    }
     participantCount = parseInt(msg.message.text.trim(), 10);
     if (isNaN(participantCount) || participantCount < 1 || participantCount > 20) {
       participantCount = 0;
@@ -81,12 +99,16 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
 
   for (let i = 1; i <= participantCount; i++) {
     await ctx.reply(
-      `🏎️ <b>Позиция ${i} из ${participantCount}</b>\n\nВведите RX-номер участника\nНапример: <code>RX555</code>`,
+      `🏎️ <b>Позиция ${i} из ${participantCount}</b>\n\nВведите RX-номер участника\nНапример: <code>RX555</code>\n\n<i>Для отмены введите /exit</i>`,
       { parse_mode: "HTML" }
     );
     let rxNumber = "";
     while (!rxNumber) {
       const msg = await conversation.waitFor("message:text");
+      if (isExit(msg.message.text)) {
+        await ctx.reply("❌ Добавление результатов отменено.");
+        return;
+      }
       const val = msg.message.text.trim().toUpperCase();
       if (!/^RX\d+$/.test(val)) {
         await msg.reply(
@@ -113,6 +135,10 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
     let lapTimes: string[] = [];
     while (lapTimes.length === 0) {
       const msg = await conversation.waitFor("message:text");
+      if (isExit(msg.message.text)) {
+        await ctx.reply("❌ Добавление результатов отменено.");
+        return;
+      }
       lapTimes = parseLapTimes(msg.message.text);
       if (lapTimes.length === 0) {
         await msg.reply("⚠️ Введите хотя бы одно время:");
