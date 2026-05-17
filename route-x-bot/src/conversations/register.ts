@@ -28,7 +28,7 @@ export async function registerConversation(conversation: MyConversation, ctx: My
   // Step 0: Choose registration type
   const regTypeKb = new InlineKeyboard()
     .text("🏁 Трек-день", "regtype:track_day").row()
-    .text("🏋️ Соревнования", "regtype:training").row()
+    .text("🏆 Соревнования", "regtype:training").row()
     .text("🚦 Аккредитация маршалов и сми", "regtype:marshal");
 
   await ctx.reply(
@@ -36,44 +36,49 @@ export async function registerConversation(conversation: MyConversation, ctx: My
     { reply_markup: regTypeKb, parse_mode: "HTML" }
   );
 
-  let regType = "";
-  while (!regType) {
-    const update = await conversation.wait();
+  while (true) {
+    let regType = "";
+    while (!regType) {
+      const update = await conversation.wait();
 
-    // Handle /exit sent as text while waiting for callback
-    if (update.message?.text && isExit(update.message.text)) {
-      await ctx.reply(EXIT_MSG);
-      return;
+      if (update.message?.text && isExit(update.message.text)) {
+        await ctx.reply(EXIT_MSG);
+        return;
+      }
+
+      const data = update.callbackQuery?.data;
+      if (data === "regtype:marshal" || data === "regtype:track_day" || data === "regtype:training") {
+        regType = data.split(":")[1];
+        await update.answerCallbackQuery?.();
+      } else if (update.callbackQuery) {
+        await update.answerCallbackQuery?.();
+      }
     }
 
-    const data = update.callbackQuery?.data;
-    if (data === "regtype:marshal" || data === "regtype:track_day" || data === "regtype:training") {
-      regType = data.split(":")[1];
-      await update.answerCallbackQuery?.();
-    } else if (update.callbackQuery) {
-      await update.answerCallbackQuery?.();
+    let done: boolean;
+    if (regType === "marshal") {
+      done = await handleMarshalRegistration(conversation, ctx);
+    } else {
+      const eventType = regType === "track_day" ? "TRACK_DAY" : "TRAINING";
+      const typeLabel = regType === "track_day" ? "Трек-дни" : "Соревнования";
+      done = await handleParticipantRegistration(conversation, ctx, telegramId, eventType, typeLabel);
     }
-  }
 
-  if (regType === "marshal") {
-    await handleMarshalRegistration(conversation, ctx);
-  } else {
-    const eventType = regType === "track_day" ? "TRACK_DAY" : "TRAINING";
-    const typeLabel = regType === "track_day" ? "Трек-дни" : "Соревнования";
-    await handleParticipantRegistration(conversation, ctx, telegramId, eventType, typeLabel);
+    if (done) return;
+    // done === false means no events were found — user can pick another category from the keyboard above
   }
 }
 
 async function handleMarshalRegistration(
   conversation: MyConversation,
   ctx: MyContext,
-) {
+): Promise<boolean> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const events = await conversation.external(() =>
     prisma.event.findMany({
-      where: { date: { gte: today } },
+      where: { date: { gte: today }, eventType: "TRAINING" },
       orderBy: { date: "asc" },
       take: 20,
     })
@@ -81,10 +86,10 @@ async function handleMarshalRegistration(
 
   if (events.length === 0) {
     await ctx.reply(
-      "ℹ️ <b>Нет доступных мероприятий для регистрации маршалом.</b>\n\nСледите за объявлениями.",
+      "ℹ️ <b>Нет доступных мероприятий (Соревнования) для регистрации маршалом.</b>\n\nВыберите другую категорию или следите за объявлениями.",
       { parse_mode: "HTML" }
     );
-    return;
+    return false;
   }
 
   const EVENT_TYPE_LABELS: Record<string, string> = {
@@ -109,7 +114,7 @@ async function handleMarshalRegistration(
 
     if (update.message?.text && isExit(update.message.text)) {
       await ctx.reply(EXIT_MSG);
-      return;
+      return true;
     }
 
     const data = update.callbackQuery?.data;
@@ -124,7 +129,7 @@ async function handleMarshalRegistration(
   const selectedEvent = await conversation.external(() =>
     prisma.event.findUnique({ where: { id: eventId } })
   );
-  if (!selectedEvent) return;
+  if (!selectedEvent) return true;
 
   // Step: Name
   await ctx.reply(
@@ -135,7 +140,7 @@ async function handleMarshalRegistration(
   const nameMsg = await conversation.waitFor("message:text");
   if (isExit(nameMsg.message.text)) {
     await ctx.reply(EXIT_MSG);
-    return;
+    return true;
   }
   const marshalName = nameMsg.message.text.trim();
 
@@ -150,7 +155,7 @@ async function handleMarshalRegistration(
     const phoneMsg = await conversation.waitFor("message:text");
     if (isExit(phoneMsg.message.text)) {
       await ctx.reply(EXIT_MSG);
-      return;
+      return true;
     }
     const val = phoneMsg.message.text.trim().replace(/[\s\-()]/g, "");
     // +375XX1234567 or 80XX1234567, where XX is operator code (25,29,33,44)
@@ -179,6 +184,7 @@ async function handleMarshalRegistration(
       `Спасибо! До встречи на мероприятии.`,
     { parse_mode: "HTML" }
   );
+  return true;
 }
 
 async function handleParticipantRegistration(
@@ -187,7 +193,7 @@ async function handleParticipantRegistration(
   telegramId: number,
   eventType: string,
   typeLabel: string
-) {
+): Promise<boolean> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -201,10 +207,10 @@ async function handleParticipantRegistration(
 
   if (events.length === 0) {
     await ctx.reply(
-      `ℹ️ <b>Нет доступных мероприятий в категории «${typeLabel}».</b>\n\nСледите за объявлениями.`,
+      `ℹ️ <b>Нет доступных мероприятий в категории «${typeLabel}».</b>\n\nВыберите другую категорию или следите за объявлениями.`,
       { parse_mode: "HTML" }
     );
-    return;
+    return false;
   }
 
   const kb = new InlineKeyboard();
@@ -223,7 +229,7 @@ async function handleParticipantRegistration(
 
     if (update.message?.text && isExit(update.message.text)) {
       await ctx.reply(EXIT_MSG);
-      return;
+      return true;
     }
 
     const data = update.callbackQuery?.data;
@@ -238,7 +244,7 @@ async function handleParticipantRegistration(
   const selectedEvent = await conversation.external(() =>
     prisma.event.findUnique({ where: { id: eventId } })
   );
-  if (!selectedEvent) return;
+  if (!selectedEvent) return true;
 
   const alreadyRegistered = await conversation.external(() =>
     prisma.eventRegistration.findUnique({
@@ -251,7 +257,7 @@ async function handleParticipantRegistration(
       `ℹ️ Вы уже зарегистрированы на это мероприятие под номером <code>${alreadyRegistered.rxNumber}</code>.`,
       { parse_mode: "HTML" }
     );
-    return;
+    return true;
   }
 
   const eventDateStr = formatDate(selectedEvent.date);
@@ -267,7 +273,7 @@ async function handleParticipantRegistration(
     const rxMsg = await conversation.waitFor("message:text");
     if (isExit(rxMsg.message.text)) {
       await ctx.reply(EXIT_MSG);
-      return;
+      return true;
     }
     const val = rxMsg.message.text.trim().toUpperCase();
     if (/^RX\d+$/.test(val)) {
@@ -300,7 +306,7 @@ async function handleParticipantRegistration(
   const nameMsg = await conversation.waitFor("message:text");
   if (isExit(nameMsg.message.text)) {
     await ctx.reply(EXIT_MSG);
-    return;
+    return true;
   }
   const fullName = nameMsg.message.text.trim();
 
@@ -312,7 +318,7 @@ async function handleParticipantRegistration(
   const carMsg = await conversation.waitFor("message:text");
   if (isExit(carMsg.message.text)) {
     await ctx.reply(EXIT_MSG);
-    return;
+    return true;
   }
   const car = carMsg.message.text.trim();
 
@@ -324,7 +330,7 @@ async function handleParticipantRegistration(
   const igMsg = await conversation.waitFor("message:text");
   if (isExit(igMsg.message.text)) {
     await ctx.reply(EXIT_MSG);
-    return;
+    return true;
   }
   const igRaw = igMsg.message.text.trim();
   let instagram: string | null = null;
@@ -349,7 +355,7 @@ async function handleParticipantRegistration(
 
     if (update.message?.text && isExit(update.message.text)) {
       await ctx.reply(EXIT_MSG);
-      return;
+      return true;
     }
 
     const data = update.callbackQuery?.data;
@@ -394,4 +400,5 @@ async function handleParticipantRegistration(
       `Добро пожаловать на GYMKHANA Route Race!`,
     { parse_mode: "HTML" }
   );
+  return true;
 }

@@ -9,7 +9,7 @@ export async function handleDeleteRegistration(ctx: CommandContext<MyContext>) {
   const events = await prisma.event.findMany({
     orderBy: { date: "desc" },
     take: 20,
-    include: { _count: { select: { registrations: true } } },
+    include: { _count: { select: { registrations: true, marshals: true } } },
   });
 
   if (events.length === 0) {
@@ -24,8 +24,9 @@ export async function handleDeleteRegistration(ctx: CommandContext<MyContext>) {
       month: "2-digit",
       year: "numeric",
     });
+    const total = event._count.registrations + event._count.marshals;
     kb.text(
-      `🏁 ${event.name} — ${dateStr} (${event._count.registrations})`,
+      `🏁 ${event.name} — ${dateStr} (${total})`,
       `dreg_event:${event.id}:1`
     ).row();
   }
@@ -43,7 +44,30 @@ async function showDregPage(ctx: CallbackQueryContext<MyContext>, eventId: numbe
     return;
   }
 
-  const total = await prisma.eventRegistration.count({ where: { eventId } });
+  const [participantRegs, marshalRegs] = await Promise.all([
+    prisma.eventRegistration.findMany({
+      where: { eventId },
+      orderBy: { rxNumber: "asc" },
+    }),
+    prisma.marshalRegistration.findMany({
+      where: { eventId },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  type RegEntry = { label: string; callbackData: string };
+  const allEntries: RegEntry[] = [
+    ...participantRegs.map((r) => ({
+      label: `🗑 ${r.rxNumber} — ${r.fullName}`,
+      callbackData: `dreg_select:r:${r.id}`,
+    })),
+    ...marshalRegs.map((r) => ({
+      label: `🚦 ${r.name} (маршал)`,
+      callbackData: `dreg_select:m:${r.id}`,
+    })),
+  ];
+
+  const total = allEntries.length;
   if (total === 0) {
     await ctx.answerCallbackQuery();
     await ctx.reply(
@@ -54,14 +78,7 @@ async function showDregPage(ctx: CallbackQueryContext<MyContext>, eventId: numbe
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const skip = (page - 1) * PAGE_SIZE;
-
-  const regs = await prisma.eventRegistration.findMany({
-    where: { eventId },
-    orderBy: { rxNumber: "asc" },
-    take: PAGE_SIZE,
-    skip,
-  });
+  const pageEntries = allEntries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const dateStr = event.date.toLocaleDateString("ru-RU", {
     day: "2-digit",
@@ -70,11 +87,8 @@ async function showDregPage(ctx: CallbackQueryContext<MyContext>, eventId: numbe
   });
 
   const kb = new InlineKeyboard();
-  for (const reg of regs) {
-    kb.text(
-      `🗑 ${reg.rxNumber} — ${reg.fullName}`,
-      `dreg_select:${reg.id}`
-    ).row();
+  for (const entry of pageEntries) {
+    kb.text(entry.label, entry.callbackData).row();
   }
 
   if (page > 1) kb.text("◀ Назад", `dreg_event:${eventId}:${page - 1}`);
@@ -103,28 +117,56 @@ export async function handleDregEventSelect(ctx: CallbackQueryContext<MyContext>
 }
 
 export async function handleDregSelect(ctx: CallbackQueryContext<MyContext>) {
-  const regId = parseInt(ctx.callbackQuery.data.split(":")[1], 10);
+  // data format: dreg_select:r:{id} or dreg_select:m:{id}
+  const parts = ctx.callbackQuery.data.split(":");
+  const kind = parts[1]; // "r" or "m"
+  const id = parseInt(parts[2], 10);
 
+  if (kind === "m") {
+    const reg = await prisma.marshalRegistration.findUnique({
+      where: { id },
+      include: { event: true },
+    });
+    if (!reg) {
+      await ctx.answerCallbackQuery("Регистрация не найдена.");
+      return;
+    }
+    const dateStr = reg.event.date.toLocaleDateString("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+    const kb = new InlineKeyboard()
+      .text("✅ Да, удалить", `dreg_confirm:m:${id}`)
+      .text("❌ Отмена", `dreg_event:${reg.eventId}:1`);
+    await ctx.editMessageText(
+      `⚠️ <b>Удалить регистрацию маршала?</b>\n\n` +
+        `🏁 <b>${reg.event.name}</b> — ${dateStr}\n` +
+        `👤 Имя: <b>${reg.name}</b>\n` +
+        `📞 Телефон: <code>${reg.phone}</code>`,
+      { reply_markup: kb, parse_mode: "HTML" }
+    );
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  // kind === "r" — participant registration
   const reg = await prisma.eventRegistration.findUnique({
-    where: { id: regId },
+    where: { id },
     include: { event: true },
   });
-
   if (!reg) {
     await ctx.answerCallbackQuery("Регистрация не найдена.");
     return;
   }
-
   const dateStr = reg.event.date.toLocaleDateString("ru-RU", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
   });
-
   const kb = new InlineKeyboard()
-    .text("✅ Да, удалить", `dreg_confirm:${regId}`)
+    .text("✅ Да, удалить", `dreg_confirm:r:${id}`)
     .text("❌ Отмена", `dreg_event:${reg.eventId}:1`);
-
   await ctx.editMessageText(
     `⚠️ <b>Удалить регистрацию?</b>\n\n` +
       `🏁 <b>${reg.event.name}</b> — ${dateStr}\n` +
@@ -137,20 +179,40 @@ export async function handleDregSelect(ctx: CallbackQueryContext<MyContext>) {
 }
 
 export async function handleDregConfirm(ctx: CallbackQueryContext<MyContext>) {
-  const regId = parseInt(ctx.callbackQuery.data.split(":")[1], 10);
+  // data format: dreg_confirm:r:{id} or dreg_confirm:m:{id}
+  const parts = ctx.callbackQuery.data.split(":");
+  const kind = parts[1]; // "r" or "m"
+  const id = parseInt(parts[2], 10);
 
+  if (kind === "m") {
+    const reg = await prisma.marshalRegistration.findUnique({
+      where: { id },
+      include: { event: true },
+    });
+    if (!reg) {
+      await ctx.answerCallbackQuery("Регистрация не найдена.");
+      return;
+    }
+    await prisma.marshalRegistration.delete({ where: { id } });
+    await ctx.editMessageText(
+      `✅ <b>Регистрация маршала удалена.</b>\n\n` +
+        `🚦 <b>${reg.name}</b> снят(а) с мероприятия «${reg.event.name}».`,
+      { parse_mode: "HTML" }
+    );
+    await ctx.answerCallbackQuery();
+    return;
+  }
+
+  // kind === "r" — participant registration
   const reg = await prisma.eventRegistration.findUnique({
-    where: { id: regId },
+    where: { id },
     include: { event: true },
   });
-
   if (!reg) {
     await ctx.answerCallbackQuery("Регистрация не найдена.");
     return;
   }
-
-  await prisma.eventRegistration.delete({ where: { id: regId } });
-
+  await prisma.eventRegistration.delete({ where: { id } });
   await ctx.editMessageText(
     `✅ <b>Регистрация удалена.</b>\n\n` +
       `🏷️ <code>${reg.rxNumber}</code> — <b>${reg.fullName}</b> снят(а) с мероприятия «${reg.event.name}».`,
