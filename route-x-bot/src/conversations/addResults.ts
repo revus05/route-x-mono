@@ -89,7 +89,7 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
     participantCount = parseInt(msg.message.text.trim(), 10);
     if (isNaN(participantCount) || participantCount < 1 || participantCount > 20) {
       participantCount = 0;
-      await msg.reply("⚠️ Введите число от <b>1</b> до <b>20</b>:", { parse_mode: "HTML" });
+      await msg.reply("⚠️ Введите число от <b>1</b> до <b>20</b>:\n\n<i>Для отмены введите /exit</i>", { parse_mode: "HTML" });
     }
   }
 
@@ -112,14 +112,14 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
       const val = msg.message.text.trim().toUpperCase();
       if (!/^RX\d+$/.test(val)) {
         await msg.reply(
-          "⚠️ Неверный формат. Номер должен начинаться с <code>RX</code> и содержать только цифры.\nНапример: <code>RX555</code>",
+          "⚠️ Неверный формат. Номер должен начинаться с <code>RX</code> и содержать только цифры.\nНапример: <code>RX555</code>\n\n<i>Для отмены введите /exit</i>",
           { parse_mode: "HTML" }
         );
         continue;
       }
       if (usedRxNumbers.has(val)) {
         await msg.reply(
-          `⚠️ Номер <code>${val}</code> уже добавлен в этот заезд. Введите другой номер:`,
+          `⚠️ Номер <code>${val}</code> уже добавлен в этот заезд. Введите другой номер:\n\n<i>Для отмены введите /exit</i>`,
           { parse_mode: "HTML" }
         );
         continue;
@@ -129,7 +129,7 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
     usedRxNumbers.add(rxNumber);
 
     await ctx.reply(
-      `⏱️ <b>${rxNumber}</b> — введите круговые времена через пробел\nНапример: <code>1.48.66 1.42.10+3 1.43.20</code>\n\n<i>+3 — штрафные секунды, ! — незачётный круг</i>`,
+      `⏱️ <b>${rxNumber}</b> — введите круговые времена через пробел\nНапример: <code>1.48.66 1.42.10+3 1.43.20</code>\n\n<i>+3 — штрафные секунды, ! — незачётный круг</i>\n\n<i>Для отмены введите /exit</i>`,
       { parse_mode: "HTML" }
     );
     let lapTimes: string[] = [];
@@ -141,7 +141,7 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
       }
       lapTimes = parseLapTimes(msg.message.text);
       if (lapTimes.length === 0) {
-        await msg.reply("⚠️ Введите хотя бы одно время:");
+        await msg.reply("⚠️ Введите хотя бы одно время:\n\n<i>Для отмены введите /exit</i>", { parse_mode: "HTML" });
       }
     }
 

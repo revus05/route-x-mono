@@ -104,7 +104,7 @@ async function handleMarshalRegistration(
   }
 
   await ctx.reply(
-    "🚦 <b>Регистрация маршала</b>\n\nВыберите мероприятие:",
+    "🚦 <b>Регистрация маршала</b>\n\nВыберите мероприятие:\n\n<i>Для отмены введите /exit</i>",
     { reply_markup: kb, parse_mode: "HTML" }
   );
 
@@ -164,7 +164,7 @@ async function handleMarshalRegistration(
       phone = val.startsWith("80") ? "+375" + val.slice(2) : val;
     } else {
       await phoneMsg.reply(
-        "⚠️ Неверный формат номера. Введите белорусский номер:\n<code>+375291234567</code> или <code>80291234567</code>",
+        "⚠️ Неверный формат номера. Введите белорусский номер:\n<code>+375291234567</code> или <code>80291234567</code>\n\n<i>Для отмены введите /exit</i>",
         { parse_mode: "HTML" }
       );
     }
@@ -219,7 +219,7 @@ async function handleParticipantRegistration(
   }
 
   await ctx.reply(
-    `🏁 <b>${typeLabel}</b>\n\nВыберите мероприятие для регистрации:`,
+    `🏁 <b>${typeLabel}</b>\n\nВыберите мероприятие для регистрации:\n\n<i>Для отмены введите /exit</i>`,
     { reply_markup: kb, parse_mode: "HTML" }
   );
 
@@ -284,7 +284,7 @@ async function handleParticipantRegistration(
       );
       if (taken) {
         await rxMsg.reply(
-          `⚠️ Номер <code>${val}</code> уже занят на этом мероприятии. Введите другой:`,
+          `⚠️ Номер <code>${val}</code> уже занят на этом мероприятии. Введите другой:\n\n<i>Для отмены введите /exit</i>`,
           { parse_mode: "HTML" }
         );
         continue;
@@ -293,7 +293,7 @@ async function handleParticipantRegistration(
       break;
     }
     await rxMsg.reply(
-      "⚠️ Неверный формат. Номер должен начинаться с <code>RX</code> и содержать только цифры.\nНапример: <code>RX555</code>",
+      "⚠️ Неверный формат. Номер должен начинаться с <code>RX</code> и содержать только цифры.\nНапример: <code>RX555</code>\n\n<i>Для отмены введите /exit</i>",
       { parse_mode: "HTML" }
     );
   }
@@ -345,7 +345,7 @@ async function handleParticipantRegistration(
     .text("AWD", "drive:AWD");
 
   await igMsg.reply(
-    "<b>Шаг 5 из 5</b> — выберите тип привода вашего автомобиля:",
+    "<b>Шаг 5 из 5</b> — выберите тип привода вашего автомобиля:\n\n<i>Для отмены введите /exit</i>",
     { reply_markup: driveKb, parse_mode: "HTML" }
   );
 

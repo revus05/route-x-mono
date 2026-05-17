@@ -44,7 +44,7 @@ export async function createEventConversation(conversation: MyConversation, ctx:
     .text("🏆 Соревнования", "etype:TRAINING");
 
   await nameMsg.reply(
-    "<b>Шаг 2 из 3</b> — выберите тип мероприятия:",
+    "<b>Шаг 2 из 3</b> — выберите тип мероприятия:\n\n<i>Для отмены введите /exit</i>",
     { reply_markup: typeKb, parse_mode: "HTML" }
   );
 
@@ -81,7 +81,7 @@ export async function createEventConversation(conversation: MyConversation, ctx:
     eventDate = parseDate(dateMsg.message.text);
     if (!eventDate) {
       await dateMsg.reply(
-        "⚠️ Неверный формат даты. Используйте <code>ДД.ММ.ГГГГ</code>\nНапример: <code>08.05.2026</code>",
+        "⚠️ Неверный формат даты. Используйте <code>ДД.ММ.ГГГГ</code>\nНапример: <code>08.05.2026</code>\n\n<i>Для отмены введите /exit</i>",
         { parse_mode: "HTML" }
       );
     }
