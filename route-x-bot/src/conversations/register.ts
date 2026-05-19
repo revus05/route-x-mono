@@ -100,7 +100,7 @@ async function handleMarshalRegistration(
   const kb = new InlineKeyboard();
   for (const event of events) {
     const typeLabel = EVENT_TYPE_LABELS[event.eventType] ?? event.eventType;
-    kb.text(`🚦 ${event.name} — ${formatDate(event.date)} [${typeLabel}]`, `mreg_event:${event.id}`).row();
+    kb.text(`🏆 ${event.name} — ${formatDate(event.date)} [${typeLabel}]`, `mreg_event:${event.id}`).row();
   }
 
   await ctx.reply(
@@ -196,6 +196,7 @@ async function handleParticipantRegistration(
 ): Promise<boolean> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const typeEmoji = eventType === "TRACK_DAY" ? "🏁" : "🏆";
 
   const events = await conversation.external(() =>
     prisma.event.findMany({
@@ -215,11 +216,11 @@ async function handleParticipantRegistration(
 
   const kb = new InlineKeyboard();
   for (const event of events) {
-    kb.text(`🏁 ${event.name} — ${formatDate(event.date)}`, `reg_event:${event.id}`).row();
+    kb.text(`${typeEmoji} ${event.name} — ${formatDate(event.date)}`, `reg_event:${event.id}`).row();
   }
 
   await ctx.reply(
-    `🏁 <b>${typeLabel}</b>\n\nВыберите мероприятие для регистрации:\n\n<i>Для отмены введите /exit</i>`,
+    `${typeEmoji} <b>${typeLabel}</b>\n\nВыберите мероприятие для регистрации:\n\n<i>Для отмены введите /exit</i>`,
     { reply_markup: kb, parse_mode: "HTML" }
   );
 
