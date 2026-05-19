@@ -28,7 +28,7 @@ export async function registerConversation(conversation: MyConversation, ctx: My
   // Step 0: Choose registration type
   const regTypeKb = new InlineKeyboard()
     .text("🏁 Трек-день", "regtype:track_day").row()
-    .text("🏆 Соревнования", "regtype:training").row()
+    .text("🏆 Чемпионат", "regtype:training").row()
     .text("🚦 Аккредитация маршалов и сми", "regtype:marshal");
 
   await ctx.reply(
@@ -60,7 +60,7 @@ export async function registerConversation(conversation: MyConversation, ctx: My
       done = await handleMarshalRegistration(conversation, ctx);
     } else {
       const eventType = regType === "track_day" ? "TRACK_DAY" : "TRAINING";
-      const typeLabel = regType === "track_day" ? "Трек-дни" : "Соревнования";
+      const typeLabel = regType === "track_day" ? "Трек-дни" : "Чемпионат";
       done = await handleParticipantRegistration(conversation, ctx, telegramId, eventType, typeLabel);
     }
 
@@ -86,7 +86,7 @@ async function handleMarshalRegistration(
 
   if (events.length === 0) {
     await ctx.reply(
-      "ℹ️ <b>Нет доступных мероприятий (Соревнования) для регистрации маршалом.</b>\n\nВыберите другую категорию или следите за объявлениями.",
+      "ℹ️ <b>Нет доступных мероприятий (Чемпионат) для регистрации маршалом.</b>\n\nВыберите другую категорию или следите за объявлениями.",
       { parse_mode: "HTML" }
     );
     return false;
@@ -94,7 +94,7 @@ async function handleMarshalRegistration(
 
   const EVENT_TYPE_LABELS: Record<string, string> = {
     TRACK_DAY: "Трек-дни",
-    TRAINING: "Соревнования",
+    TRAINING: "Чемпионат",
   };
 
   const kb = new InlineKeyboard();

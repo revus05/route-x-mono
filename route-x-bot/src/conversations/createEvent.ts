@@ -7,7 +7,7 @@ type MyConversation = Conversation<MyContext, MyContext>;
 
 const EVENT_TYPE_LABELS: Record<string, string> = {
   TRACK_DAY: "Трек-дни",
-  TRAINING: "Соревнования",
+  TRAINING: "Чемпионат",
 };
 
 function parseDate(input: string): Date | null {
@@ -41,7 +41,7 @@ export async function createEventConversation(conversation: MyConversation, ctx:
   // Step 2: Event type
   const typeKb = new InlineKeyboard()
     .text("🏁 Трек-дни", "etype:TRACK_DAY")
-    .text("🏆 Соревнования", "etype:TRAINING");
+    .text("🏆 Чемпионат", "etype:TRAINING");
 
   await nameMsg.reply(
     "<b>Шаг 2 из 3</b> — выберите тип мероприятия:\n\n<i>Для отмены введите /exit</i>",
