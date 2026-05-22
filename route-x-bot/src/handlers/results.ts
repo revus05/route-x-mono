@@ -3,25 +3,8 @@ import { InlineKeyboard } from "grammy";
 import type { MyContext } from "../types";
 import prisma from "../prisma";
 
-function formatEventResults(
-  name: string,
-  date: Date,
-  results: { position: number; rxNumber: string; lapTimes: string[] }[]
-): string {
-  const dateStr = date.toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-
-  const lines = results
-    .sort((a, b) => a.position - b.position)
-    .map((r) => {
-      const times = r.lapTimes.join("; ") + ";";
-      return `${r.position}. <b>${r.rxNumber}</b>  ${times}`;
-    });
-
-  return `🏁 <b>${name}</b> — ${dateStr} 🏁\n\n${lines.join("\n")}`;
+function getEventEmoji(eventType: string): string {
+  return eventType === "TRAINING" ? "🏆" : "🏁";
 }
 
 export async function handleResults(ctx: CommandContext<MyContext>) {
@@ -32,7 +15,6 @@ export async function handleResults(ctx: CommandContext<MyContext>) {
     where: { date: { gte: today } },
     orderBy: { date: "asc" },
     take: 20,
-    include: { _count: { select: { results: true } } },
   });
 
   if (events.length === 0) {
@@ -49,8 +31,9 @@ export async function handleResults(ctx: CommandContext<MyContext>) {
       month: "2-digit",
       year: "numeric",
     });
-    const hasResults = event._count.results > 0 ? "" : " ⏳";
-    kb.text(`🏁 ${event.name} — ${dateStr}${hasResults}`, `result:${event.id}`).row();
+    const emoji = getEventEmoji(event.eventType);
+    const hasResults = event.resultsLink ? "" : " ⏳";
+    kb.text(`${emoji} ${event.name} — ${dateStr}${hasResults}`, `result:${event.id}`).row();
   }
 
   await ctx.reply("📋 <b>Результаты заездов</b>\n\nВыберите мероприятие:", {
@@ -62,17 +45,14 @@ export async function handleResults(ctx: CommandContext<MyContext>) {
 export async function handleResultDetail(ctx: CallbackQueryContext<MyContext>) {
   const eventId = parseInt(ctx.callbackQuery.data.split(":")[1], 10);
 
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    include: { results: true },
-  });
+  const event = await prisma.event.findUnique({ where: { id: eventId } });
 
   if (!event) {
     await ctx.answerCallbackQuery("Мероприятие не найдено.");
     return;
   }
 
-  if (event.results.length === 0) {
+  if (!event.resultsLink) {
     await ctx.answerCallbackQuery();
     await ctx.reply(
       `ℹ️ Результаты мероприятия <b>${event.name}</b> ещё не добавлены.`,
@@ -81,7 +61,9 @@ export async function handleResultDetail(ctx: CallbackQueryContext<MyContext>) {
     return;
   }
 
-  const text = formatEventResults(event.name, event.date, event.results);
-  await ctx.reply(text, { parse_mode: "HTML" });
   await ctx.answerCallbackQuery();
+  await ctx.reply(
+    `${getEventEmoji(event.eventType)} <b>${event.name}</b>\n\n🔗 ${event.resultsLink}`,
+    { parse_mode: "HTML" }
+  );
 }

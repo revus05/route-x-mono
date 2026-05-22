@@ -8,7 +8,7 @@ export async function handleDeleteEvent(ctx: CommandContext<MyContext>) {
     orderBy: { date: "desc" },
     take: 20,
     include: {
-      _count: { select: { registrations: true, results: true } },
+      _count: { select: { registrations: true } },
     },
   });
 
@@ -24,7 +24,7 @@ export async function handleDeleteEvent(ctx: CommandContext<MyContext>) {
       month: "2-digit",
       year: "numeric",
     });
-    const info = `(${event._count.registrations} уч., ${event._count.results} рез.)`;
+    const info = `(${event._count.registrations} уч.)`;
     kb.text(`🗑 ${event.name} — ${dateStr} ${info}`, `del_event:${event.id}`).row();
   }
 
@@ -39,7 +39,7 @@ export async function handleDeleteEventSelect(ctx: CallbackQueryContext<MyContex
 
   const event = await prisma.event.findUnique({
     where: { id: eventId },
-    include: { _count: { select: { registrations: true, results: true } } },
+    include: { _count: { select: { registrations: true } } },
   });
 
   if (!event) {
@@ -60,9 +60,8 @@ export async function handleDeleteEventSelect(ctx: CallbackQueryContext<MyContex
   await ctx.editMessageText(
     `⚠️ <b>Удалить мероприятие?</b>\n\n` +
       `🏁 <b>${event.name}</b> — ${dateStr}\n` +
-      `👥 Регистраций: <b>${event._count.registrations}</b>\n` +
-      `📊 Результатов: <b>${event._count.results}</b>\n\n` +
-      `<i>Все регистрации и результаты будут удалены безвозвратно.</i>`,
+      `👥 Регистраций: <b>${event._count.registrations}</b>\n\n` +
+      `<i>Все регистрации будут удалены безвозвратно.</i>`,
     { reply_markup: kb, parse_mode: "HTML" }
   );
   await ctx.answerCallbackQuery();
@@ -77,8 +76,6 @@ export async function handleDeleteEventConfirm(ctx: CallbackQueryContext<MyConte
     return;
   }
 
-  // Delete in order: results → registrations → marshals → event
-  await prisma.raceResult.deleteMany({ where: { eventId } });
   await prisma.eventRegistration.deleteMany({ where: { eventId } });
   await prisma.marshalRegistration.deleteMany({ where: { eventId } });
   await prisma.event.delete({ where: { id: eventId } });

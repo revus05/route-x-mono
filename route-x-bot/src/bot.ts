@@ -4,7 +4,7 @@ import { conversations, createConversation } from "@grammyjs/conversations";
 import type { MyContext, SessionData } from "./types";
 import { handleStart } from "./handlers/start";
 import { handleMakeAdmin } from "./handlers/makeAdmin";
-import { handleUsers, handleUsersEventSelect, handleUsersPagination } from "./handlers/users";
+import { handleUsers, handleUsersTypeSelect, handleUsersEventSelect, handleUsersPagination } from "./handlers/users";
 import { handleResults, handleResultDetail } from "./handlers/results";
 import {
   handleDeleteEvent,
@@ -79,6 +79,7 @@ bot.command("deletevent", adminGuard, handleDeleteEvent);
 bot.command("delreg", adminGuard, handleDeleteRegistration);
 
 // Callback queries — users list
+bot.callbackQuery(/^users_type:/, adminGuard, handleUsersTypeSelect);
 bot.callbackQuery(/^users_event:/, adminGuard, handleUsersEventSelect);
 bot.callbackQuery(/^users_page:/, adminGuard, handleUsersPagination);
 bot.callbackQuery("users:noop", adminGuard, handleUsersPagination);

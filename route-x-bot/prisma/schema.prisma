@@ -29,9 +29,9 @@ model Event {
   name          String
   date          DateTime
   eventType     String                @default("TRACK_DAY") // TRACK_DAY | TRAINING
+  resultsLink   String?
   createdAt     DateTime              @default(now())
   registrations EventRegistration[]
-  results       RaceResult[]
   marshals      MarshalRegistration[]
 }
 
@@ -62,11 +62,3 @@ model MarshalRegistration {
   createdAt DateTime @default(now())
 }
 
-model RaceResult {
-  id       Int    @id @default(autoincrement())
-  event    Event  @relation(fields: [eventId], references: [id])
-  eventId  Int
-  position Int
-  rxNumber String
-  lapTimes String[]
-}

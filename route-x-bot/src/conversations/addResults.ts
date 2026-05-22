@@ -9,16 +9,11 @@ function isExit(text: string): boolean {
   return text.trim() === "/exit";
 }
 
-function parseLapTimes(input: string): string[] {
-  return input
-    .trim()
-    .split(/[\s;]+/)
-    .map((t) => t.trim())
-    .filter(Boolean);
+function getEventEmoji(eventType: string): string {
+  return eventType === "TRAINING" ? "🏆" : "🏁";
 }
 
 export async function addResultsConversation(conversation: MyConversation, ctx: MyContext) {
-  // Step 1: Select existing event
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -45,11 +40,12 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
       month: "2-digit",
       year: "numeric",
     });
-    kb.text(`🏁 ${event.name} — ${dateStr}`, `addres_event:${event.id}`).row();
+    const emoji = getEventEmoji(event.eventType);
+    kb.text(`${emoji} ${event.name} — ${dateStr}`, `addres_event:${event.id}`).row();
   }
 
   await ctx.reply(
-    "📅 <b>Добавление результатов заезда</b>\n\nВыберите мероприятие:\n\n<i>Для отмены введите /exit</i>",
+    "📅 <b>Добавление результатов</b>\n\nВыберите мероприятие:\n\n<i>Для отмены введите /exit</i>",
     { reply_markup: kb, parse_mode: "HTML" }
   );
 
@@ -67,116 +63,36 @@ export async function addResultsConversation(conversation: MyConversation, ctx: 
     if (update.callbackQuery) await update.answerCallbackQuery();
   }
 
-  if (!cbData.startsWith("addres_event:")) return;
   const eventId = parseInt(cbData.split(":")[1], 10);
-
   const selectedEvent = await conversation.external(() =>
     prisma.event.findUnique({ where: { id: eventId } })
   );
   if (!selectedEvent) return;
 
-  // Step 2: Number of participants
-  await ctx.reply("👥 Сколько участников финишировало? <i>(от 1 до 20)</i>\n\n<i>Для отмены введите /exit</i>", {
-    parse_mode: "HTML",
-  });
-  let participantCount = 0;
-  while (participantCount < 1 || participantCount > 20) {
+  await ctx.reply(
+    `🔗 <b>${selectedEvent.name}</b>\n\nВведите ссылку на Google Диск с результатами:\n\n<i>Для отмены введите /exit</i>`,
+    { parse_mode: "HTML" }
+  );
+
+  let link = "";
+  while (!link) {
     const msg = await conversation.waitFor("message:text");
     if (isExit(msg.message.text)) {
       await ctx.reply("❌ Добавление результатов отменено.");
       return;
     }
-    participantCount = parseInt(msg.message.text.trim(), 10);
-    if (isNaN(participantCount) || participantCount < 1 || participantCount > 20) {
-      participantCount = 0;
-      await msg.reply("⚠️ Введите число от <b>1</b> до <b>20</b>:\n\n<i>Для отмены введите /exit</i>", { parse_mode: "HTML" });
-    }
+    link = msg.message.text.trim();
   }
 
-  // Step 3: Collect each participant
-  const participants: { rxNumber: string; lapTimes: string[] }[] = [];
-  const usedRxNumbers = new Set<string>();
-
-  for (let i = 1; i <= participantCount; i++) {
-    await ctx.reply(
-      `🏎️ <b>Позиция ${i} из ${participantCount}</b>\n\nВведите RX-номер участника\nНапример: <code>RX555</code>\n\n<i>Для отмены введите /exit</i>`,
-      { parse_mode: "HTML" }
-    );
-    let rxNumber = "";
-    while (!rxNumber) {
-      const msg = await conversation.waitFor("message:text");
-      if (isExit(msg.message.text)) {
-        await ctx.reply("❌ Добавление результатов отменено.");
-        return;
-      }
-      const val = msg.message.text.trim().toUpperCase();
-      if (!/^RX\d+$/.test(val)) {
-        await msg.reply(
-          "⚠️ Неверный формат. Номер должен начинаться с <code>RX</code> и содержать только цифры.\nНапример: <code>RX555</code>\n\n<i>Для отмены введите /exit</i>",
-          { parse_mode: "HTML" }
-        );
-        continue;
-      }
-      if (usedRxNumbers.has(val)) {
-        await msg.reply(
-          `⚠️ Номер <code>${val}</code> уже добавлен в этот заезд. Введите другой номер:\n\n<i>Для отмены введите /exit</i>`,
-          { parse_mode: "HTML" }
-        );
-        continue;
-      }
-      rxNumber = val;
-    }
-    usedRxNumbers.add(rxNumber);
-
-    await ctx.reply(
-      `⏱️ <b>${rxNumber}</b> — введите круговые времена через пробел\nНапример: <code>1.48.66 1.42.10+3 1.43.20</code>\n\n<i>+3 — штрафные секунды, ! — незачётный круг</i>\n\n<i>Для отмены введите /exit</i>`,
-      { parse_mode: "HTML" }
-    );
-    let lapTimes: string[] = [];
-    while (lapTimes.length === 0) {
-      const msg = await conversation.waitFor("message:text");
-      if (isExit(msg.message.text)) {
-        await ctx.reply("❌ Добавление результатов отменено.");
-        return;
-      }
-      lapTimes = parseLapTimes(msg.message.text);
-      if (lapTimes.length === 0) {
-        await msg.reply("⚠️ Введите хотя бы одно время:\n\n<i>Для отмены введите /exit</i>", { parse_mode: "HTML" });
-      }
-    }
-
-    participants.push({ rxNumber, lapTimes });
-  }
-
-  // Save to DB
-  const savedEvent = await conversation.external(async () => {
-    return prisma.event.update({
+  await conversation.external(() =>
+    prisma.event.update({
       where: { id: eventId },
-      data: {
-        results: {
-          create: participants.map((p, idx) => ({
-            position: idx + 1,
-            rxNumber: p.rxNumber,
-            lapTimes: p.lapTimes,
-          })),
-        },
-      },
-      include: { results: true },
-    });
-  });
-
-  const dateStr = selectedEvent.date.toLocaleDateString("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-
-  const lines = savedEvent.results
-    .sort((a, b) => a.position - b.position)
-    .map((r) => `${r.position}. <b>${r.rxNumber}</b>  ${r.lapTimes.join("; ")};`);
+      data: { resultsLink: link },
+    })
+  );
 
   await ctx.reply(
-    `✅ <b>Результаты сохранены!</b>\n\n🏁 <b>${selectedEvent.name}</b> — ${dateStr} 🏁\n\n${lines.join("\n")}`,
+    `✅ <b>Результаты сохранены!</b>\n\n${getEventEmoji(selectedEvent.eventType)} <b>${selectedEvent.name}</b>\n\n🔗 ${link}`,
     { parse_mode: "HTML" }
   );
 }

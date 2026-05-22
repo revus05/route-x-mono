@@ -5,6 +5,10 @@ import prisma from "../prisma";
 
 const PAGE_SIZE = 12;
 
+function getEventEmoji(eventType: string): string {
+  return eventType === "TRAINING" ? "🏆" : "🏁";
+}
+
 function buildRegistrationsMessage(
   regs: { rxNumber: string; fullName: string; car: string; instagram: string | null; driveType: string }[],
   marshals: { name: string; phone: string }[],
@@ -40,11 +44,23 @@ function buildRegistrationsMessage(
 }
 
 export async function handleUsers(ctx: CommandContext<MyContext>) {
+  const kb = new InlineKeyboard()
+    .text("🏆 Соревнования", "users_type:TRAINING").row()
+    .text("🏁 Трек-дни", "users_type:TRACK_DAY");
+
+  await ctx.reply("👥 <b>Участники</b>\n\nВыберите тип мероприятия:", {
+    reply_markup: kb,
+    parse_mode: "HTML",
+  });
+}
+
+export async function handleUsersTypeSelect(ctx: CallbackQueryContext<MyContext>) {
+  const eventType = ctx.callbackQuery.data.split(":")[1];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const events = await prisma.event.findMany({
-    where: { date: { gte: today } },
+    where: { date: { gte: today }, eventType },
     orderBy: { date: "asc" },
     take: 20,
     include: {
@@ -52,11 +68,14 @@ export async function handleUsers(ctx: CommandContext<MyContext>) {
     },
   });
 
+  await ctx.answerCallbackQuery();
+
   if (events.length === 0) {
-    await ctx.reply("ℹ️ Мероприятий пока нет.", { parse_mode: "HTML" });
+    await ctx.reply("ℹ️ Мероприятий этого типа пока нет.", { parse_mode: "HTML" });
     return;
   }
 
+  const emoji = getEventEmoji(eventType);
   const kb = new InlineKeyboard();
   for (const event of events) {
     const dateStr = event.date.toLocaleDateString("ru-RU", {
@@ -66,12 +85,13 @@ export async function handleUsers(ctx: CommandContext<MyContext>) {
     });
     const counts = `${event._count.registrations} уч.${event._count.marshals > 0 ? ` · ${event._count.marshals} марш.` : ""}`;
     kb.text(
-      `🏁 ${event.name} — ${dateStr} (${counts})`,
+      `${emoji} ${event.name} — ${dateStr} (${counts})`,
       `users_event:${event.id}`
     ).row();
   }
 
-  await ctx.reply("👥 <b>Участники</b>\n\nВыберите мероприятие:", {
+  const typeLabel = eventType === "TRAINING" ? "Соревнования" : "Трек-дни";
+  await ctx.reply(`👥 <b>Участники — ${typeLabel}</b>\n\nВыберите мероприятие:`, {
     reply_markup: kb,
     parse_mode: "HTML",
   });

@@ -34,7 +34,8 @@ export async function handleStart(ctx: CommandContext<MyContext>) {
         month: "2-digit",
         year: "numeric",
       });
-      return `🏁 <b>${e.name}</b> — ${dateStr}`;
+      const emoji = e.eventType === "TRAINING" ? "🏆" : "🏁";
+      return `${emoji} <b>${e.name}</b> — ${dateStr}`;
     });
     eventsText = `\n\n<b>Ближайшие мероприятия:</b>\n${lines.join("\n")}\n\nДля регистрации используйте /register.`;
   } else {
