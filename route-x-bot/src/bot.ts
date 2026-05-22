@@ -71,7 +71,7 @@ bot.command("myregistrations", handleMyRegistrations);
 bot.command("results", handleResults);
 
 // Commands — admin only
-bot.command("makeadmin", handleMakeAdmin);
+bot.command("makeadmin", adminGuard, handleMakeAdmin);
 bot.command("users", adminGuard, handleUsers);
 bot.command("createevent", adminGuard, async (ctx) => { await ctx.conversation.enter("createEvent"); });
 bot.command("addresults", adminGuard, async (ctx) => { await ctx.conversation.enter("addResults"); });

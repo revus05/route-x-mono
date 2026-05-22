@@ -1,17 +1,11 @@
 import type { CommandContext } from "grammy";
 import type { MyContext } from "../types";
 import prisma from "../prisma";
-import { isSuperAdmin } from "../middleware/adminGuard";
 import { setAdminCommandsForUser } from "../commands";
 
 export async function handleMakeAdmin(ctx: CommandContext<MyContext>) {
   const callerId = ctx.from?.id;
   if (!callerId) return;
-
-  if (!isSuperAdmin(callerId)) {
-    await ctx.reply("🚫 У вас нет прав для выполнения этой команды.", { parse_mode: "HTML" });
-    return;
-  }
 
   const args = ctx.match?.trim();
   if (!args) {
