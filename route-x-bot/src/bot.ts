@@ -3,7 +3,6 @@ import { conversations, createConversation } from "@grammyjs/conversations";
 
 import type { MyContext, SessionData } from "./types";
 import { handleStart } from "./handlers/start";
-import { handleMakeAdmin } from "./handlers/makeAdmin";
 import { handleUsers, handleUsersTypeSelect, handleUsersEventSelect, handleUsersPagination } from "./handlers/users";
 import { handleResults, handleResultDetail } from "./handlers/results";
 import {
@@ -30,6 +29,7 @@ import { setAdminCommandsForUser } from "./commands";
 import { registerConversation } from "./conversations/register";
 import { addResultsConversation } from "./conversations/addResults";
 import { createEventConversation } from "./conversations/createEvent";
+import { makeAdminConversation } from "./conversations/makeAdmin";
 
 const token = process.env.BOT_TOKEN;
 if (!token) throw new Error("BOT_TOKEN is not set in environment variables");
@@ -44,6 +44,7 @@ bot.use(conversations());
 bot.use(createConversation(registerConversation, "register"));
 bot.use(createConversation(addResultsConversation, "addResults"));
 bot.use(createConversation(createEventConversation, "createEvent"));
+bot.use(createConversation(makeAdminConversation, "makeAdmin"));
 
 // Auto-promote pending admins on every interaction and update their command menu
 bot.use(async (ctx, next) => {
@@ -71,7 +72,7 @@ bot.command("myregistrations", handleMyRegistrations);
 bot.command("results", handleResults);
 
 // Commands — admin only
-bot.command("makeadmin", adminGuard, handleMakeAdmin);
+bot.command("makeadmin", adminGuard, async (ctx) => { await ctx.conversation.enter("makeAdmin"); });
 bot.command("users", adminGuard, handleUsers);
 bot.command("createevent", adminGuard, async (ctx) => { await ctx.conversation.enter("createEvent"); });
 bot.command("addresults", adminGuard, async (ctx) => { await ctx.conversation.enter("addResults"); });
