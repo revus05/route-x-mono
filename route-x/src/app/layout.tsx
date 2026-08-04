@@ -31,6 +31,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
     apple: "/favicon.ico",
   },
+  verification: {
+    google: process.env.GOOGLE_VERIFICATION_CODE,
+  },
 };
 
 export default function RootLayout({
