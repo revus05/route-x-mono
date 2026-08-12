@@ -12,7 +12,7 @@ datasource db {
 // Needed on serverless where in-memory state does not survive between updates.
 model ConversationState {
   key       String   @id
-  data      Json
+  data      String
   updatedAt DateTime @updatedAt
 }
 

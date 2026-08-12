@@ -48,6 +48,9 @@ bot.use(
     // Conversation state lives in Postgres so it survives serverless invocations
     storage: {
       type: "key",
+      // Bump when the stored format changes — old states are discarded instead
+      // of being replayed into an error
+      version: 1,
       adapter: prismaConversationStorage<ConversationData>(),
     },
   })
