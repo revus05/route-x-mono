@@ -3,8 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+// Conversation state of the @grammyjs/conversations plugin.
+// Needed on serverless where in-memory state does not survive between updates.
+model ConversationState {
+  key       String   @id
+  data      Json
+  updatedAt DateTime @updatedAt
 }
 
 // User — only for admins (no registration profile)

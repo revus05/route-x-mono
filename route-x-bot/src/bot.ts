@@ -1,5 +1,9 @@
 import { Bot, session } from "grammy";
-import { conversations, createConversation } from "@grammyjs/conversations";
+import {
+  conversations,
+  createConversation,
+  type ConversationData,
+} from "@grammyjs/conversations";
 
 import type { MyContext, SessionData } from "./types";
 import { handleStart } from "./handlers/start";
@@ -30,6 +34,7 @@ import { registerConversation } from "./conversations/register";
 import { addResultsConversation } from "./conversations/addResults";
 import { createEventConversation } from "./conversations/createEvent";
 import { makeAdminConversation } from "./conversations/makeAdmin";
+import { prismaConversationStorage } from "./storage";
 
 const token = process.env.BOT_TOKEN;
 if (!token) throw new Error("BOT_TOKEN is not set in environment variables");
@@ -38,7 +43,15 @@ export const bot = new Bot<MyContext>(token);
 
 // Session + conversations middleware
 bot.use(session({ initial: (): SessionData => ({}) }));
-bot.use(conversations());
+bot.use(
+  conversations({
+    // Conversation state lives in Postgres so it survives serverless invocations
+    storage: {
+      type: "key",
+      adapter: prismaConversationStorage<ConversationData>(),
+    },
+  })
+);
 
 // Register conversations
 bot.use(createConversation(registerConversation, "register"));
@@ -61,7 +74,7 @@ bot.use(async (ctx, next) => {
 
 // /exit — cancel any active conversation
 bot.command("exit", async (ctx) => {
-  await ctx.conversation.exit();
+  await ctx.conversation.exitAll();
   await ctx.reply("❌ Диалог отменён.");
 });
 
