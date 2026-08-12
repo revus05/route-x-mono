@@ -5,7 +5,7 @@ import prisma from "../prisma";
 
 type MyConversation = Conversation<MyContext, MyContext>;
 
-const DRIVE_TYPES = ["RWD", "FWD", "AWD"];
+const DRIVE_TYPES = ["RWD", "FWD/AWD"];
 
 const EXIT_MSG = "❌ Регистрация отменена. Введите /register чтобы начать заново.";
 
@@ -342,8 +342,7 @@ async function handleParticipantRegistration(
   // Step 5: Drive type
   const driveKb = new InlineKeyboard()
     .text("RWD", "drive:RWD")
-    .text("FWD", "drive:FWD")
-    .text("AWD", "drive:AWD");
+    .text("FWD/AWD", "drive:FWD/AWD");
 
   await igMsg.reply(
     "<b>Шаг 5 из 5</b> — выберите тип привода вашего автомобиля:\n\n<i>Для отмены введите /exit</i>",
