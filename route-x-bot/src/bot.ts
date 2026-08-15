@@ -35,6 +35,7 @@ import { addResultsConversation } from "./conversations/addResults";
 import { createEventConversation } from "./conversations/createEvent";
 import { makeAdminConversation } from "./conversations/makeAdmin";
 import { prismaConversationStorage } from "./storage";
+import { recordLastError } from "./debug";
 
 const token = process.env.BOT_TOKEN;
 if (!token) throw new Error("BOT_TOKEN is not set in environment variables");
@@ -121,8 +122,9 @@ bot.callbackQuery(/^dreg_confirm:/, adminGuard, handleDregConfirm);
 bot.callbackQuery("dreg:noop", adminGuard, handleDregNoop);
 
 // Catch-all error handler
-bot.catch((err) => {
+bot.catch(async (err) => {
   console.error("Bot error:", err);
+  await recordLastError(err.error ?? err);
 });
 
 export default bot;
