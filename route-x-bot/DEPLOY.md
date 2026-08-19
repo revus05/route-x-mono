@@ -59,8 +59,26 @@ Build Command трогать не нужно: в `package.json` есть `vercel
 ## 5. Выключить старый инстанс
 
 Telegram отдаёт апдейты либо в polling, либо в webhook — одновременно нельзя.
-Останови докер-бота (`docker compose stop bot`) или локальный `bun run dev`,
-иначе `getUpdates` будет отбирать апдейты у вебхука (ошибка 409 Conflict).
+Любой запущенный polling-инстанс (`bun run dev`, `bun run start`, контейнер)
+на старте вызывает `bot.api.deleteWebhook()` (`src/index.ts`) и молча уводит
+все апдейты у вебхука на себя — вместе со своей базой из своего `.env`.
+
+Именно так и вышло 18.08.2026: после перезапуска сервера docker-compose поднял
+контейнер `routex-bot`, тот снял вебхук, и бот отвечал из серверной базы, где
+не было актуальных мероприятий. Снаружи это выглядело как «бот не видит данные».
+Корневой `docker-compose.yml` с сервисами `bot` и `postgres` поэтому удалён —
+на сервере остался только фронтенд (`route-x/docker-compose.yml`).
+
+Если бот всё же где-то запущен, проверить и погасить:
+
+```bash
+curl "https://api.telegram.org/bot<BOT_TOKEN>/getWebhookInfo"   # url пустой => апдейты забирает polling
+docker ps                                                       # ищем контейнер с ботом
+docker rm -f routex-bot                                         # именно rm: stop не спасёт от restart: unless-stopped
+```
+
+После этого заново дёрнуть `/api/setup?secret=...` и убедиться, что в
+`/api/health` поле `lastUpdate.at` стало свежим — значит апдейты снова у Vercel.
 
 ## 6. Перенос существующих данных (если нужно)
 

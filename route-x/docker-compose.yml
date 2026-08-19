@@ -1,6 +1,11 @@
 services:
   frontend:
-    build: .
+    build:
+      context: .
+      # GOOGLE_SHEET_URL нужен на этапе сборки (ARG в Dockerfile), одного
+      # env_file недостаточно — без него фронт соберётся без адреса таблицы
+      args:
+        GOOGLE_SHEET_URL: ${GOOGLE_SHEET_URL:-https://opensheet.elk.sh/1ouU6YJwxn6syJwYS2rn0960t0YXtVAvEN-8b7akx2AU/}
     container_name: frontend
     env_file:
       - .env
