@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "module": "src/index.ts",
   "scripts": {
-    "dev": "bun run --watch src/index.ts",
-    "start": "bun run src/index.ts",
+    "dev": "bun scripts/gen-conversations-version.mjs && bun run --watch src/index.ts",
+    "start": "bun scripts/gen-conversations-version.mjs && bun run src/index.ts",
+    "gen:version": "node scripts/gen-conversations-version.mjs",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
-    "vercel-build": "prisma generate && prisma migrate deploy"
+    "vercel-build": "node scripts/gen-conversations-version.mjs && prisma generate && prisma migrate deploy"
   },
   "dependencies": {
     "@grammyjs/conversations": "^2.0.1",

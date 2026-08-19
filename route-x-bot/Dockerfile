@@ -10,4 +10,8 @@ COPY . .
 
 RUN bunx prisma generate
 
+# Версия хранилища диалогов считается из исходников — пересчитываем в образе,
+# чтобы закоммиченный файл не разъехался с кодом
+RUN bun scripts/gen-conversations-version.mjs
+
 CMD ["bun", "run", "src/index.ts"]

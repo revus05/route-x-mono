@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import bot from "../src/bot";
+import prisma from "../src/prisma";
 import { syncCommands } from "../src/setup";
 
 /**
@@ -13,6 +14,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const secret = process.env.SETUP_SECRET;
   if (!secret || req.query.secret !== secret) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
+  }
+
+  // ?reset=conversations — drop every stored conversation. An active conversation
+  // swallows all updates for its chat, so this is the way out if one gets stuck.
+  if (req.query.reset === "conversations") {
+    const { count } = await prisma.conversationState.deleteMany({});
+    return res.status(200).json({ ok: true, reset: "conversations", count });
   }
 
   const host = req.headers["x-forwarded-host"] ?? req.headers.host;

@@ -36,6 +36,8 @@ import { createEventConversation } from "./conversations/createEvent";
 import { makeAdminConversation } from "./conversations/makeAdmin";
 import { prismaConversationStorage } from "./storage";
 import { recordLastError } from "./debug";
+import { CONVERSATIONS_VERSION } from "./generated/conversationsVersion";
+import prisma from "./prisma";
 
 const token = process.env.BOT_TOKEN;
 if (!token) throw new Error("BOT_TOKEN is not set in environment variables");
@@ -49,9 +51,10 @@ bot.use(
     // Conversation state lives in Postgres so it survives serverless invocations
     storage: {
       type: "key",
-      // Bump when the stored format changes — old states are discarded instead
-      // of being replayed into an error
-      version: 1,
+      // Хэш src/conversations/, пересчитывается на каждой сборке
+      // (scripts/gen-conversations-version.mjs). Любое изменение диалога меняет
+      // версию, и старые состояния отбрасываются вместо падения при replay.
+      version: CONVERSATIONS_VERSION,
       adapter: prismaConversationStorage<ConversationData>(),
     },
   })
@@ -121,10 +124,45 @@ bot.callbackQuery(/^dreg_select:/, adminGuard, handleDregSelect);
 bot.callbackQuery(/^dreg_confirm:/, adminGuard, handleDregConfirm);
 bot.callbackQuery("dreg:noop", adminGuard, handleDregNoop);
 
-// Catch-all error handler
+/**
+ * Снимает застрявшее состояние диалога для чата.
+ *
+ * Сначала штатный `exitAll()`, затем — безусловно — удаление строки напрямую.
+ * Второй шаг нужен потому, что при сломанном плагине `exitAll()` может как
+ * бросить исключение, так и тихо отработать вхолостую, не сняв состояние.
+ * Удаление идемпотентно, так что лишним оно не будет.
+ * Ключ хранилища по умолчанию — `ctx.chatId.toString()`.
+ */
+async function clearConversationState(ctx: MyContext): Promise<void> {
+  try {
+    await ctx.conversation?.exitAll();
+  } catch {
+    // штатный выход недоступен — ниже вычищаем хранилище напрямую
+  }
+
+  const chatId = ctx.chatId;
+  if (chatId === undefined) return;
+  try {
+    await prisma.conversationState.deleteMany({ where: { key: chatId.toString() } });
+  } catch {
+    // больше сделать нечего: ниже пользователь всё равно получит ответ
+  }
+}
+
+// Catch-all error handler.
+//
+// Раньше здесь ошибка просто проглатывалась: Telegram получал 200 OK, а чат с
+// незавершённым диалогом залипал молча — conversations-middleware перехватывает
+// апдейты раньше команд, так что даже /exit до пользователя не доходил.
+// Теперь чат расклинивается сам, независимо от причины сбоя.
 bot.catch(async (err) => {
   console.error("Bot error:", err);
   await recordLastError(err.error ?? err);
+
+  await clearConversationState(err.ctx);
+  await err.ctx
+    .reply("⚠️ Что-то пошло не так, диалог сброшен. Попробуйте ещё раз — /start")
+    .catch(() => {});
 });
 
 export default bot;
